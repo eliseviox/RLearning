@@ -130,7 +130,7 @@ subtractun<-function (datatable) {
       a<-sapply(X, is.numeric)
       print(returnCols[a == "TRUE"])
       }
-    #Apply numeric.only function to datatable
+  #Apply numeric.only function to datatable
     for (z in numeric.only(datatable)){
   #Subtract out unstim value from respective stim cytokine values
     newcolumn<-unlist(lapply(y,function(g)
@@ -150,7 +150,7 @@ library(knitr)
 kable(newfake)
 library(dplyr)
 library(tidyr)
-newfake %>%
+newfake<-newfake %>%
   separate(donor, c("donor", "Status"), "_")
 
 #library(stringr)
@@ -158,9 +158,51 @@ newfake %>%
 ```
 
 ```{r}
-library(ggplot2)
-qplot(x=donor, y=ifng, data=newfake, color=stim)
-qplot(x=donor, y=tnfa, data=newfake, color=stim)
+#splitmean <- function(df) {
+  #s <- split( df, df$Status)
+  #sapply( s, function(x) mean(x$ifng) )
+#}
+#newfake<-splitmean(newfake)
+library(dplyr)
+
+newnewfakemean<-group_by(newfake,Status) %>%
+  summarise_if(is.numeric, mean)
+
+library(plyr)
+#binaryfakemean<-revalue(newnewfakemean$Status, c("SMneg"="0", "SMpos"="1"))
+newnewfakemean$Status[which(newnewfakemean$Status=="SMneg")]<-"0"
+newnewfakemean$Status[which(newnewfakemean$Status=="SMpos")]<-"1"
+newnewfakemean$Status <- as.numeric(newnewfakemean$Status)
+wilcox.test(newnewfakemean$ifng, newnewfakemean$Status)
+    
+
+#wilcox.test(newnewfakemean$ifng, newnewfakemean$Status)
+
+
+#lapply(newnewfakemean, function(x) t.test(x ~ newnewfakemean$Status))
+
+
+#out <- c() 
+#for(m in columns(Data)) {
+#if(class(Data[[m]])=='numeric') {
+        #out <- c(out, sd(Data[[r]]))
+  #}
+#}
+
+
+
+#wilcox.test(nifng, newnewfakemean$Status)
+
+
+# independent 2-group Mann-Whitney U Test where y is numeric and A is A binary factor
+#wilcox.test(y~A) 
+
+#library(ggplot2)
+
+
+
+#qplot(x=donor, y=ifng, data=newfake, color=stim)
+#qplot(x=donor, y=tnfa, data=newfake, color=stim)
 
 
 #for (z in numeric.only(newfake)){
