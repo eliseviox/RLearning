@@ -1,0 +1,261 @@
+---
+title: "Luminex_DataAnalysis"
+author: "Elise Viox"
+date: "November 15th, 2018"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+```
+
+##R Markdown
+#Analyze Luminex Data
+##Generate Practice Luminex Data
+Multiple practice tables were created with data similar to what we might obtain from running Luminex and combined into one table.
+
+###Create Datatable 1
+```{r Create Data Table #1}
+#Create "fake1" datatable
+library(knitr)
+library(kableExtra)
+library(data.table)
+donor<-c(rep("A_SMpos", 6), rep("B_SMneg",6), rep("C_SMneg",6), rep("D_SMneg",6), rep("E_SMpos",6), rep("F_SMpos",6), rep("G_SMneg",6), rep("H_SMneg",6), rep("I_SMneg",6), rep("J_SMpos",6), rep("K_SMpos",6), rep("L_SMpos",6), rep("M_SMpos", 6))
+stim<-rep(c("un","w","p","s","sw","sb"),3)
+ifng<-rnorm(70, 2)
+tnfa<-rnorm(70,10)
+IL4<-rnorm(70,5)
+IL5<-rnorm(70,7)
+IL10<-rnorm(70,13)
+IL13<-rnorm(70,19)
+IL17<-rnorm(70,17)
+IL21<-rnorm(70,11)
+IL22<-rnorm(70,3)
+
+fake1<-as.data.table(cbind(donor,stim,ifng,tnfa,IL4, IL5, IL10, IL13, IL17, IL21, IL22))
+fake1$ifng=as.numeric(as.character(fake1$ifng))
+fake1$tnfa=as.numeric(as.character(fake1$tnfa))
+fake1$IL4=as.numeric(as.character(fake1$IL4))
+fake1$IL5=as.numeric(as.character(fake1$IL5))
+fake1$IL10=as.numeric(as.character(fake1$IL10))
+fake1$IL13=as.numeric(as.character(fake1$IL13))
+fake1$IL17=as.numeric(as.character(fake1$IL17))
+fake1$IL21=as.numeric(as.character(fake1$IL21))
+fake1$IL22=as.numeric(as.character(fake1$IL22))
+
+#Print "fake1" datatable 
+library(knitr)
+kable(fake1) %>% kable_styling(latex_options="scale_down")
+
+#Write "fake1" csv
+setwd("/Users/eviox/Documents/Emory_IMP/Rotations/Day_Lab/Luminex/FakeData/")
+write.csv(fake1,"fake1.csv")
+```
+
+###Create Datatable 2
+```{r Create Data Table #2}
+#Create "fake2" datatable
+library(knitr)
+library(kableExtra)
+library(data.table)
+donor<-c(rep("N_SMpos",6), rep("O_SMpos",6), rep("P_SMpos",6), rep("Q_SMneg",6), rep("R_SMpos",6), rep("S_SMneg",6), rep("T_SMneg",6), rep("U_SMneg",6), rep("V_SMneg",6), rep("W_SMpos",6), rep("X_SMpos",6), rep("Y_SMneg", 6), rep("Z_SMpos", 6))
+stim<-rep(c("un","w","p","s","sw","sb"),3)
+ifng<-rnorm(70, 2)
+tnfa<-rnorm(70,10)
+IL4<-rnorm(70,5)
+IL5<-rnorm(70,7)
+IL10<-rnorm(70,13)
+IL13<-rnorm(70,19)
+IL17<-rnorm(70,17)
+IL21<-rnorm(70,11)
+IL22<-rnorm(70,3)
+
+fake2<-as.data.table(cbind(donor,stim,ifng,tnfa,IL4, IL5, IL10, IL13, IL17, IL21, IL22))
+fake2$ifng=as.numeric(as.character(fake1$ifng))
+fake2$tnfa=as.numeric(as.character(fake1$tnfa))
+fake2$IL4=as.numeric(as.character(fake1$IL4))
+fake2$IL5=as.numeric(as.character(fake1$IL5))
+fake2$IL10=as.numeric(as.character(fake1$IL10))
+fake2$IL13=as.numeric(as.character(fake1$IL13))
+fake2$IL17=as.numeric(as.character(fake1$IL17))
+fake2$IL21=as.numeric(as.character(fake1$IL21))
+fake2$IL22=as.numeric(as.character(fake1$IL22))
+
+#Print "fake2" datatable 
+library(knitr)
+kable(fake2) %>% kable_styling(latex_options="scale_down")
+
+#Write "fake2" csv
+setwd("/Users/eviox/Documents/Emory_IMP/Rotations/Day_Lab/Luminex/FakeData/")
+write.csv(fake2,"fake2.csv")
+```
+
+
+###Combine Datatables
+```{r Combine fake datatables read in from folder}
+library(data.table)
+library(kableExtra)
+library(knitr)
+
+#Identify directory where files of interest are located
+file_names <- dir("/Users/eviox/Documents/Emory_IMP/Rotations/Day_Lab/Luminex/FakeData/")
+
+#Set directory for new file to be stored
+setwd("/Users/eviox/Documents/Emory_IMP/Rotations/Day_Lab/Luminex/FakeData/")
+
+#Combine all files in the file_names directory into one file
+fakecombined <- do.call(rbind,lapply(file_names,read.csv))
+fakecombined$X <- NULL
+
+kable(fakecombined) %>% kable_styling(latex_options="scale_down")
+```
+
+##Subtract out unstimulated values
+I wrote a function called "subtractun"" that pulls the unstimulated value for each cytokine from each donor and subtracts it from the respective stim values for the respective cytokine.
+
+The function uses the 1) split, 2) apply, 3)combine sequence to 1) generate data tables for each individual donor, 2) apply the subtraction of the unstim to the respective cytokines for those donors, and 3) take these newly calculated values for individual donors and combine them into a data table containing all donor values.
+
+The subtractun function will be applied only to the numeric columns of a datatable as specified by the "numeric.only" function. In the case of luminex data, this ensures that the function will only be applied to cytokine data. 
+
+###Split table by donor
+```{r Split Table}
+library(knitr)
+library(kableExtra)
+#Redefine donor (since previously defined for generating fake data)
+donor<-fakecombined$donor
+fakesplit<- split(fakecombined, donor)
+kable(fakesplit$A) %>% kable_styling(latex_options="scale_down")
+kable(fakesplit$B) %>% kable_styling(latex_options="scale_down")
+kable(fakesplit$C) %>% kable_styling(latex_options="scale_down")
+kable(fakesplit$D) %>% kable_styling(latex_options="scale_down")
+kable(fakesplit$E) %>% kable_styling(latex_options="scale_down")
+kable(fakesplit$F) %>% kable_styling(latex_options="scale_down")
+```
+
+
+###Create function for subtracting out unstimulated
+```{r Create Split, Apply, Combine Function}
+subtractun<-function (datatable) {
+  #Split datatable by donor    
+    y<- split(datatable, donor)
+  #Write function that will select numeric columns of datatable
+    numeric.only <- function(X,...){
+      returnCols <- names(X)
+      a<-sapply(X, is.numeric)
+      print(returnCols[a == "TRUE"])
+      }
+  #Apply numeric.only function to datatable
+    for (z in numeric.only(datatable)){
+  #Subtract out unstim value from respective stim cytokine values
+    newcolumn<-unlist(lapply(y,function(g)
+      (g[,z]- as.matrix(subset(g[,z], g$stim=="un"))[1,1])
+      ))
+  #Create new datatable with unstim substractions applied to all donors 
+    datatable[,z] <- newcolumn}
+    datatable
+      }  
+```
+
+###Apply function for subtracting out unstimulated to data table of interest
+```{r Apply function to data table of interest}
+#Apply subtractun function to datatable of interest
+newfake<-subtractun(fakecombined)
+newfake[newfake<0] <- 0
+library(knitr)
+library(kableExtra)
+kable(newfake) %>% kable_styling(latex_options="scale_down")
+library(dplyr)
+library(tidyr)
+newfake<-newfake %>%
+  separate(donor, c("donor", "Status"), "_")
+```
+
+##Reshape data table so that each cytokine name is assigned to row entries instead of having its own column
+I applied the gather function to make the data table format compatible for the next set of functions.
+```{r Gather Datatable}
+library(tidyr)
+library(knitr)
+
+gathereddata<-gather(newfake, "Cytokine", "Concentration", c("ifng", "tnfa", "IL4", "IL5", "IL10", "IL13", "IL17", "IL21", "IL22"))
+
+kable(gathereddata)
+```
+
+##Calcualte p values for comparisons between SMneg and SMpos for different cytokines for different treatments
+```{r P vals}
+#Function for Wilcox rank sum 2-sample test
+##Subset data by condition
+##Split subsetted data by cytokine
+##Run Wilcox rank sum 2-sample test by Schisto status
+library(knitr)
+pvals<-function(data,column,condition){
+SubsettedData<-subset(data, data[,column]== condition)
+x<-split(data,list(data$Cytokine))
+A<-lapply(x, function(g) wilcox.test(g$Concentration~g[,"Status"]))
+pvalslist<-c(A$infg$p.value,A$tnfa$p.value,A$IL4$p.value,A$IL5$p.value,A$IL10$p.value,A$IL13$p.value,A$IL17$p.value,A$IL21$p.value, A$IL22$p.value)
+Analytes<-c("ifng","tnfa","IL4","IL5", "IL10","IL13", "IL17", "IL21", "IL22")
+Pvalues<-round(pvalslist, 4)
+table<-(cbind(Analytes, Pvalues))
+}
+
+#Apply function to desired stim condition of gathered data table
+WilcoxTestTable_WCL<-pvals(gathereddata,"stim","w")
+kable(WilcoxTestTable_WCL) 
+
+#Future direction: Adjust the p values to account for multiple comparisons
+##hochberg_adj_pvals<-round(p.adjust(pvalslist, method="hochberg"), 4)
+```
+
+#Perform Hierarchical Clustering Analysis
+##Generate Heatmap for each stim condition
+I created one heatmap per stim condition showing the differences in concentration of cytokines between patients. 
+```{r Heatmap Analysis}
+library(ggplot2)
+library(stats)
+
+#Create general heatmap function
+heatmapfunction<-function(data,column,condition){
+SubsettedData<-subset(data, data[,column]== condition)
+heatmap <- ggplot(data = SubsettedData, mapping = aes(x = donor,
+              y = Cytokine,
+              fill = Concentration)) +
+              geom_tile() +
+              xlab(label = "Sample") +
+              ggtitle(label = condition) +
+              facet_grid(~Status, switch = "x", scales = "free_x", space = "free_x")
+}
+#Apply function to stimulation condition of interest in indicated datatable
+SEB<-heatmapfunction(gathereddata,"stim","sb")
+SEA<-heatmapfunction(gathereddata,"stim","s")
+SWAP<-heatmapfunction(gathereddata,"stim","sw")
+WCL<-heatmapfunction(gathereddata,"stim","w")
+PeptidePool<-heatmapfunction(gathereddata,"stim","p")
+
+SEB
+SEA
+SWAP
+WCL
+PeptidePool
+```
+
+#Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+##Generate Dendrogram for each stim condition
+```{r Create Dendrogram}
+
+```
+
+##Merge Heatmap and Dendrogram
+```{r Merge Heatmap and Dendrogram}
+
+```
+
+##Order heatmap according to position in dendrogram to generate hierarchically clustered heatmap
+```{r Order the heatmap according to position in the cluster}
+
+```
+
